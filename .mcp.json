@@ -1,0 +1,16 @@
+{
+  "mcpServers": {
+    "abap-adt": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["-y", "@mario-andreschak/mcp-abap-adt"],
+      "env": {
+        "ABAP_SYSTEM_HOST": "sap-ascs-s4p.sap.tc",
+        "ABAP_SYSTEM_PORT": "443",
+        "ABAP_CLIENT": "400",
+        "ABAP_USER": "SOKOLOVDA",
+        "ABAP_PASSWORD": ""
+      }
+    }
+  }
+}
