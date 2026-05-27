@@ -1,16 +1,1 @@
-{
-  "mcpServers": {
-    "sap-s4hana": {
-      "command": "python",
-      "args": ["-m", "sap_mcp.server"],
-      "cwd": "${workspaceRoot}",
-      "env": {
-        "SAP_BASE_URL": "${SAP_BASE_URL}",
-        "SAP_USER": "${SAP_USER}",
-        "SAP_PASSWORD": "${SAP_PASSWORD}",
-        "SAP_CLIENT": "${SAP_CLIENT:-100}",
-        "SAP_SSL_VERIFY": "${SAP_SSL_VERIFY:-true}"
-      }
-    }
-  }
-}
+{}
