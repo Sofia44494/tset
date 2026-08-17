@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 
-type WorkspaceId = 'overview' | 'transport' | 'fleet' | 'commerce' | 'control';
+type WorkspaceId = 'overview' | 'transport' | 'fleet' | 'erv' | 'commerce' | 'control';
 type ShipmentStatus = 'В пути' | 'Погрузка' | 'На границе' | 'Риск' | 'Закрыта';
 type AlertSeverity = 'Критично' | 'Важно' | 'Планово';
 
@@ -29,6 +29,36 @@ type FleetItem = {
   total: number;
   utilization: number;
   service: string;
+};
+
+type WagonRecord = {
+  number: string;
+  type: string;
+  model: string;
+  owner: string;
+  operator: string;
+  registration: string;
+  depot: string;
+  status: 'Готов' | 'В рейсе' | 'ТО' | 'Ограничение';
+  currentStation: string;
+  nextRepair: string;
+  payload: string;
+  tare: string;
+  grossMass: string;
+  volume: string;
+  length: string;
+  axleLoad: string;
+  bogie: string;
+  brake: string;
+  mileage: string;
+};
+
+type WagonCharacteristic = {
+  group: string;
+  field: string;
+  description: string;
+  example: string;
+  required: string;
 };
 
 type Terminal = {
@@ -61,6 +91,11 @@ const workspaces: Array<{ id: WorkspaceId; label: string; description: string }>
     id: 'fleet',
     label: 'Парк',
     description: 'Вагоны, локомотивы, ТО',
+  },
+  {
+    id: 'erv',
+    label: 'ЕРВ',
+    description: 'Единый реестр вагонов',
   },
   {
     id: 'commerce',
@@ -189,6 +224,376 @@ const fleet: FleetItem[] = [
   },
 ];
 
+const wagonRegistry: WagonRecord[] = [
+  {
+    number: '52563418',
+    type: 'Полувагон',
+    model: '12-132-03',
+    owner: 'RailFlow Leasing',
+    operator: 'СеверСталь Логистика',
+    registration: 'РФ',
+    depot: 'Вологда',
+    status: 'В рейсе',
+    currentStation: 'Лоста',
+    nextRepair: 'КР 12.2028',
+    payload: '70,0 т',
+    tare: '23,5 т',
+    grossMass: '93,5 т',
+    volume: '88 м³',
+    length: '13 920 мм',
+    axleLoad: '23,5 тс',
+    bogie: '18-100',
+    brake: 'Автоматический пневматический',
+    mileage: '142 810 км',
+  },
+  {
+    number: '53820177',
+    type: 'Крытый вагон',
+    model: '11-280',
+    owner: 'ТрансКонтур',
+    operator: 'АгроТрейд',
+    registration: 'РФ',
+    depot: 'Батайск',
+    status: 'Готов',
+    currentStation: 'Краснодар-Сорт.',
+    nextRepair: 'ДР 03.2027',
+    payload: '68,0 т',
+    tare: '24,2 т',
+    grossMass: '92,2 т',
+    volume: '120 м³',
+    length: '15 720 мм',
+    axleLoad: '23,0 тс',
+    bogie: '18-100',
+    brake: 'Пневматический с авторежимом',
+    mileage: '98 430 км',
+  },
+  {
+    number: '94760544',
+    type: 'Платформа',
+    model: '13-2114',
+    owner: 'Восток Контейнер',
+    operator: 'Восток Контейнер',
+    registration: 'РФ',
+    depot: 'Москва-Товарная',
+    status: 'Ограничение',
+    currentStation: 'Тайшет',
+    nextRepair: 'ТО-3 08.2026',
+    payload: '72,0 т',
+    tare: '21,8 т',
+    grossMass: '93,8 т',
+    volume: 'Контейнерная база',
+    length: '19 620 мм',
+    axleLoad: '23,5 тс',
+    bogie: '18-9855',
+    brake: 'Автоматический пневматический',
+    mileage: '211 020 км',
+  },
+  {
+    number: '73014826',
+    type: 'Цистерна',
+    model: '15-150-04',
+    owner: 'УралХим Транс',
+    operator: 'УралХим Транс',
+    registration: 'РФ',
+    depot: 'Березники',
+    status: 'ТО',
+    currentStation: 'Пермь-Сорт.',
+    nextRepair: 'ДР 09.2026',
+    payload: '66,0 т',
+    tare: '27,4 т',
+    grossMass: '93,4 т',
+    volume: '73 м³',
+    length: '12 020 мм',
+    axleLoad: '23,5 тс',
+    bogie: '18-100',
+    brake: 'Пневматический с раздельным торможением',
+    mileage: '176 550 км',
+  },
+];
+
+const wagonCharacteristics: WagonCharacteristic[] = [
+  {
+    group: 'Идентификация',
+    field: 'Номер вагона',
+    description: 'Уникальный восьмизначный номер единицы подвижного состава.',
+    example: '52563418',
+    required: 'Да',
+  },
+  {
+    group: 'Идентификация',
+    field: 'Род вагона',
+    description: 'Классификация по назначению: полувагон, крытый, платформа, цистерна и т.д.',
+    example: 'Полувагон',
+    required: 'Да',
+  },
+  {
+    group: 'Идентификация',
+    field: 'Модель',
+    description: 'Заводское обозначение модели, определяющее конструктивные характеристики.',
+    example: '12-132-03',
+    required: 'Да',
+  },
+  {
+    group: 'Идентификация',
+    field: 'Собственник',
+    description: 'Юридическое лицо, которому принадлежит вагон.',
+    example: 'RailFlow Leasing',
+    required: 'Да',
+  },
+  {
+    group: 'Идентификация',
+    field: 'Оператор',
+    description: 'Компания, управляющая коммерческой эксплуатацией вагона.',
+    example: 'СеверСталь Логистика',
+    required: 'Да',
+  },
+  {
+    group: 'Идентификация',
+    field: 'Страна регистрации',
+    description: 'Государство учета вагона в железнодорожной администрации.',
+    example: 'РФ',
+    required: 'Да',
+  },
+  {
+    group: 'Идентификация',
+    field: 'Депо приписки',
+    description: 'Базовое депо обслуживания и учета вагона.',
+    example: 'Вологда',
+    required: 'Да',
+  },
+  {
+    group: 'Идентификация',
+    field: 'Дата постройки',
+    description: 'Дата выпуска вагона заводом-изготовителем.',
+    example: '14.05.2018',
+    required: 'Да',
+  },
+  {
+    group: 'Идентификация',
+    field: 'Завод-изготовитель',
+    description: 'Предприятие, выпустившее вагон.',
+    example: 'УВЗ',
+    required: 'Да',
+  },
+  {
+    group: 'Идентификация',
+    field: 'Срок службы',
+    description: 'Нормативный срок эксплуатации с учетом продлений ресурса.',
+    example: '32 года',
+    required: 'Да',
+  },
+  {
+    group: 'Технические параметры',
+    field: 'Грузоподъемность',
+    description: 'Максимальная масса груза, разрешенная к перевозке в вагоне.',
+    example: '70,0 т',
+    required: 'Да',
+  },
+  {
+    group: 'Технические параметры',
+    field: 'Тара',
+    description: 'Собственная масса порожнего вагона.',
+    example: '23,5 т',
+    required: 'Да',
+  },
+  {
+    group: 'Технические параметры',
+    field: 'Полная масса брутто',
+    description: 'Сумма тары и максимально допустимой массы груза.',
+    example: '93,5 т',
+    required: 'Да',
+  },
+  {
+    group: 'Технические параметры',
+    field: 'Объем кузова или котла',
+    description: 'Полезный объем для размещения груза, контейнера или наливного продукта.',
+    example: '88 м³',
+    required: 'Да',
+  },
+  {
+    group: 'Технические параметры',
+    field: 'Длина по осям автосцепки',
+    description: 'Габаритная длина вагона для расчета состава и станционных путей.',
+    example: '13 920 мм',
+    required: 'Да',
+  },
+  {
+    group: 'Технические параметры',
+    field: 'База вагона',
+    description: 'Расстояние между центрами шкворневых узлов тележек.',
+    example: '8 650 мм',
+    required: 'Да',
+  },
+  {
+    group: 'Технические параметры',
+    field: 'Количество осей',
+    description: 'Число колесных осей, влияющее на допустимую нагрузку и тарифные расчеты.',
+    example: '4',
+    required: 'Да',
+  },
+  {
+    group: 'Технические параметры',
+    field: 'Нагрузка на ось',
+    description: 'Максимально допустимая нагрузка от оси на рельсы.',
+    example: '23,5 тс',
+    required: 'Да',
+  },
+  {
+    group: 'Технические параметры',
+    field: 'Модель тележки',
+    description: 'Тип тележки, установленной на вагоне.',
+    example: '18-100',
+    required: 'Да',
+  },
+  {
+    group: 'Технические параметры',
+    field: 'Тип тормоза',
+    description: 'Конфигурация тормозной системы и наличие авторежима.',
+    example: 'Автоматический пневматический',
+    required: 'Да',
+  },
+  {
+    group: 'Технические параметры',
+    field: 'Тип автосцепки',
+    description: 'Модель сцепного устройства для совместимости в составе.',
+    example: 'СА-3',
+    required: 'Да',
+  },
+  {
+    group: 'Технические параметры',
+    field: 'Габарит',
+    description: 'Допустимый контур размещения вагона и груза на инфраструктуре.',
+    example: '1-Т',
+    required: 'Да',
+  },
+  {
+    group: 'Технические параметры',
+    field: 'Высота',
+    description: 'Максимальная высота вагона от уровня головки рельса.',
+    example: '3 760 мм',
+    required: 'Нет',
+  },
+  {
+    group: 'Технические параметры',
+    field: 'Ширина',
+    description: 'Максимальная ширина кузова или платформы.',
+    example: '3 220 мм',
+    required: 'Нет',
+  },
+  {
+    group: 'Эксплуатация',
+    field: 'Текущее состояние',
+    description: 'Операционный статус вагона: готов, в рейсе, на ТО, под ограничением.',
+    example: 'В рейсе',
+    required: 'Да',
+  },
+  {
+    group: 'Эксплуатация',
+    field: 'Текущая станция',
+    description: 'Последняя подтвержденная станция дислокации вагона.',
+    example: 'Лоста',
+    required: 'Да',
+  },
+  {
+    group: 'Эксплуатация',
+    field: 'Последняя операция',
+    description: 'Последнее событие с вагоном: погрузка, выгрузка, перестановка, осмотр.',
+    example: 'Прибытие на станцию',
+    required: 'Да',
+  },
+  {
+    group: 'Эксплуатация',
+    field: 'Дата последней операции',
+    description: 'Время фиксации последнего события по вагону.',
+    example: '17.08.2026 08:40',
+    required: 'Да',
+  },
+  {
+    group: 'Эксплуатация',
+    field: 'Пробег',
+    description: 'Накопленный пробег вагона для контроля ресурса и ремонтов.',
+    example: '142 810 км',
+    required: 'Да',
+  },
+  {
+    group: 'Эксплуатация',
+    field: 'Остаток до ремонта',
+    description: 'Доступный ресурс по пробегу или времени до следующего ремонта.',
+    example: '38 000 км',
+    required: 'Да',
+  },
+  {
+    group: 'Эксплуатация',
+    field: 'Следующий ремонт',
+    description: 'Тип и срок ближайшего планового ремонта или ТО.',
+    example: 'КР 12.2028',
+    required: 'Да',
+  },
+  {
+    group: 'Эксплуатация',
+    field: 'Ремонтные ограничения',
+    description: 'Ограничения эксплуатации из-за дефектов, предписаний или ремонта.',
+    example: 'Запрет погрузки до ТО-3',
+    required: 'Нет',
+  },
+  {
+    group: 'Эксплуатация',
+    field: 'Разрешенные грузы',
+    description: 'Номенклатура грузов, допустимых к перевозке в данном вагоне.',
+    example: 'Металл, уголь, щебень',
+    required: 'Да',
+  },
+  {
+    group: 'Эксплуатация',
+    field: 'Запрещенные грузы',
+    description: 'Грузы, несовместимые с конструкцией, остатками или санитарными требованиями.',
+    example: 'Пищевые грузы после химии',
+    required: 'Нет',
+  },
+  {
+    group: 'Коммерция и контроль',
+    field: 'Договор аренды',
+    description: 'Связанный договор использования вагона оператором или клиентом.',
+    example: 'RL-24/088',
+    required: 'Нет',
+  },
+  {
+    group: 'Коммерция и контроль',
+    field: 'Ставка аренды',
+    description: 'Суточная или рейсовая ставка использования вагона.',
+    example: '2 850 ₽/сутки',
+    required: 'Нет',
+  },
+  {
+    group: 'Коммерция и контроль',
+    field: 'Коэффициент использования',
+    description: 'Доля времени, когда вагон находится в доходной эксплуатации.',
+    example: '91%',
+    required: 'Да',
+  },
+  {
+    group: 'Коммерция и контроль',
+    field: 'GPS/ГЛОНАСС',
+    description: 'Наличие телематического устройства и статус передачи координат.',
+    example: 'Активен',
+    required: 'Нет',
+  },
+  {
+    group: 'Коммерция и контроль',
+    field: 'Пломбы',
+    description: 'Номера и состояние пломб для контроля сохранности груза.',
+    example: 'RF883201, целая',
+    required: 'Нет',
+  },
+  {
+    group: 'Коммерция и контроль',
+    field: 'Примечание',
+    description: 'Свободное поле для диспетчерских, технических и клиентских комментариев.',
+    example: 'Требуется мойка после выгрузки',
+    required: 'Нет',
+  },
+];
+
 const terminals: Terminal[] = [
   {
     name: 'Южный хаб',
@@ -270,6 +675,13 @@ const severityClass: Record<AlertSeverity, string> = {
   Планово: 'severity severity-blue',
 };
 
+const wagonStatusClass: Record<WagonRecord['status'], string> = {
+  Готов: 'status status-green',
+  'В рейсе': 'status status-blue',
+  ТО: 'status status-amber',
+  Ограничение: 'status status-red',
+};
+
 function App() {
   const [activeWorkspace, setActiveWorkspace] = useState<WorkspaceId>('overview');
   const [query, setQuery] = useState('');
@@ -291,6 +703,13 @@ function App() {
 
   const activeWorkspaceTitle =
     workspaces.find((workspace) => workspace.id === activeWorkspace)?.label ?? 'Командный центр';
+  const isErvWorkspace = activeWorkspace === 'erv';
+  const heroTitle = isErvWorkspace
+    ? 'ЕРВ: единый реестр вагонов с полной карточкой характеристик'
+    : 'Единый контур управления перевозками, парком и финансами';
+  const heroDescription = isErvWorkspace
+    ? 'Ведите паспорт вагона, технические параметры, эксплуатационный статус, ремонтный ресурс и коммерческие ограничения в едином справочнике.'
+    : 'Планируйте отправки, отслеживайте вагоны, контролируйте SLA, документы и доходность маршрутов в одном интерфейсе.';
 
   return (
     <main className="app-shell">
@@ -331,18 +750,15 @@ function App() {
         <header className="hero">
           <div>
             <p className="eyebrow">Рабочая область: {activeWorkspaceTitle}</p>
-            <h2>Единый контур управления перевозками, парком и финансами</h2>
-            <p>
-              Планируйте отправки, отслеживайте вагоны, контролируйте SLA, документы и доходность
-              маршрутов в одном интерфейсе.
-            </p>
+            <h2>{heroTitle}</h2>
+            <p>{heroDescription}</p>
           </div>
           <div className="hero-actions">
             <button className="primary-button" type="button">
-              Создать заявку
+              {isErvWorkspace ? 'Добавить вагон' : 'Создать заявку'}
             </button>
             <button className="secondary-button" type="button">
-              Импорт из ЭТРАН
+              {isErvWorkspace ? 'Импорт из АСОУП' : 'Импорт из ЭТРАН'}
             </button>
           </div>
         </header>
@@ -359,117 +775,328 @@ function App() {
           ))}
         </section>
 
-        <section className="workspace-grid">
-          <div className="panel panel-large">
-            <div className="panel-header">
-              <div>
-                <p className="eyebrow">Операционная воронка</p>
-                <h3>Жизненный цикл перевозки</h3>
-              </div>
-              <span className="live-badge">live</span>
-            </div>
-            <div className="stage-list">
-              {routeStages.map((stage) => (
-                <div className="stage-row" key={stage.label}>
+        {isErvWorkspace ? (
+          <ErvWorkspace />
+        ) : (
+          <>
+            <section className="workspace-grid">
+              <div className="panel panel-large">
+                <div className="panel-header">
                   <div>
-                    <strong>{stage.label}</strong>
-                    <span>{stage.amount}</span>
+                    <p className="eyebrow">Операционная воронка</p>
+                    <h3>Жизненный цикл перевозки</h3>
                   </div>
-                  <ProgressBar value={stage.complete} />
-                  <b>{stage.complete}%</b>
+                  <span className="live-badge">live</span>
                 </div>
-              ))}
-            </div>
-          </div>
-
-          <div className="panel">
-            <div className="panel-header">
-              <div>
-                <p className="eyebrow">Риски и SLA</p>
-                <h3>Центр реагирования</h3>
-              </div>
-            </div>
-            <div className="alert-list">
-              {alerts.map((alert) => (
-                <article className="alert-card" key={alert.title}>
-                  <div>
-                    <span className={severityClass[alert.severity]}>{alert.severity}</span>
-                    <h4>{alert.title}</h4>
-                  </div>
-                  <p>{alert.detail}</p>
-                  <small>{alert.owner}</small>
-                </article>
-              ))}
-            </div>
-          </div>
-        </section>
-
-        <section className="panel">
-          <div className="panel-header panel-header-stacked">
-            <div>
-              <p className="eyebrow">Реестр перевозок</p>
-              <h3>Активные заявки и рейсы</h3>
-            </div>
-            <label className="search-box">
-              <span>Поиск</span>
-              <input
-                aria-label="Поиск по перевозкам"
-                onChange={(event) => setQuery(event.target.value)}
-                placeholder="Клиент, маршрут, груз или статус"
-                value={query}
-              />
-            </label>
-          </div>
-
-          <div className="table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th>Заявка</th>
-                  <th>Клиент</th>
-                  <th>Маршрут</th>
-                  <th>Груз</th>
-                  <th>ETA</th>
-                  <th>Сумма</th>
-                  <th>Надежность</th>
-                  <th>Статус</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredShipments.map((shipment) => (
-                  <tr key={shipment.id}>
-                    <td>
-                      <strong>{shipment.id}</strong>
-                    </td>
-                    <td>{shipment.client}</td>
-                    <td>{shipment.route}</td>
-                    <td>{shipment.cargo}</td>
-                    <td>{shipment.eta}</td>
-                    <td>{shipment.value}</td>
-                    <td>
-                      <div className="reliability">
-                        <ProgressBar value={shipment.reliability} compact />
-                        <span>{shipment.reliability}%</span>
+                <div className="stage-list">
+                  {routeStages.map((stage) => (
+                    <div className="stage-row" key={stage.label}>
+                      <div>
+                        <strong>{stage.label}</strong>
+                        <span>{stage.amount}</span>
                       </div>
-                    </td>
-                    <td>
-                      <span className={statusClass[shipment.status]}>{shipment.status}</span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </section>
+                      <ProgressBar value={stage.complete} />
+                      <b>{stage.complete}%</b>
+                    </div>
+                  ))}
+                </div>
+              </div>
 
-        <section className="module-grid">
-          <FleetPanel />
-          <TerminalsPanel />
-          <FinancePanel />
-          <DocumentsPanel />
-        </section>
+              <div className="panel">
+                <div className="panel-header">
+                  <div>
+                    <p className="eyebrow">Риски и SLA</p>
+                    <h3>Центр реагирования</h3>
+                  </div>
+                </div>
+                <div className="alert-list">
+                  {alerts.map((alert) => (
+                    <article className="alert-card" key={alert.title}>
+                      <div>
+                        <span className={severityClass[alert.severity]}>{alert.severity}</span>
+                        <h4>{alert.title}</h4>
+                      </div>
+                      <p>{alert.detail}</p>
+                      <small>{alert.owner}</small>
+                    </article>
+                  ))}
+                </div>
+              </div>
+            </section>
+
+            <section className="panel">
+              <div className="panel-header panel-header-stacked">
+                <div>
+                  <p className="eyebrow">Реестр перевозок</p>
+                  <h3>Активные заявки и рейсы</h3>
+                </div>
+                <label className="search-box">
+                  <span>Поиск</span>
+                  <input
+                    aria-label="Поиск по перевозкам"
+                    onChange={(event) => setQuery(event.target.value)}
+                    placeholder="Клиент, маршрут, груз или статус"
+                    value={query}
+                  />
+                </label>
+              </div>
+
+              <div className="table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Заявка</th>
+                      <th>Клиент</th>
+                      <th>Маршрут</th>
+                      <th>Груз</th>
+                      <th>ETA</th>
+                      <th>Сумма</th>
+                      <th>Надежность</th>
+                      <th>Статус</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredShipments.map((shipment) => (
+                      <tr key={shipment.id}>
+                        <td>
+                          <strong>{shipment.id}</strong>
+                        </td>
+                        <td>{shipment.client}</td>
+                        <td>{shipment.route}</td>
+                        <td>{shipment.cargo}</td>
+                        <td>{shipment.eta}</td>
+                        <td>{shipment.value}</td>
+                        <td>
+                          <div className="reliability">
+                            <ProgressBar value={shipment.reliability} compact />
+                            <span>{shipment.reliability}%</span>
+                          </div>
+                        </td>
+                        <td>
+                          <span className={statusClass[shipment.status]}>{shipment.status}</span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </section>
+
+            <section className="module-grid">
+              <FleetPanel />
+              <TerminalsPanel />
+              <FinancePanel />
+              <DocumentsPanel />
+            </section>
+          </>
+        )}
       </section>
     </main>
+  );
+}
+
+function ErvWorkspace() {
+  const characteristicGroups = Array.from(
+    new Set(wagonCharacteristics.map((characteristic) => characteristic.group)),
+  );
+
+  return (
+    <>
+      <section className="erv-summary-grid">
+        <article className="panel erv-summary-card">
+          <p className="eyebrow">ЕРВ</p>
+          <strong>{wagonRegistry.length}</strong>
+          <span>вагона в витрине реестра</span>
+        </article>
+        <article className="panel erv-summary-card">
+          <p className="eyebrow">Поля паспорта</p>
+          <strong>{wagonCharacteristics.length}</strong>
+          <span>характеристик с описаниями</span>
+        </article>
+        <article className="panel erv-summary-card">
+          <p className="eyebrow">Контроль ремонта</p>
+          <strong>100%</strong>
+          <span>записей с планом ТО и ремонта</span>
+        </article>
+      </section>
+
+      <section className="erv-grid">
+        <div className="panel panel-large">
+          <div className="panel-header">
+            <div>
+              <p className="eyebrow">Единый реестр вагонов</p>
+              <h3>Карточки подвижного состава</h3>
+            </div>
+            <span className="live-badge">АСОУП sync</span>
+          </div>
+          <div className="wagon-card-grid">
+            {wagonRegistry.map((wagon) => (
+              <article className="wagon-card" key={wagon.number}>
+                <div className="wagon-card-head">
+                  <div>
+                    <span className="wagon-number">{wagon.number}</span>
+                    <h4>
+                      {wagon.type} · {wagon.model}
+                    </h4>
+                  </div>
+                  <span className={wagonStatusClass[wagon.status]}>{wagon.status}</span>
+                </div>
+                <dl className="wagon-details">
+                  <div>
+                    <dt>Собственник</dt>
+                    <dd>{wagon.owner}</dd>
+                  </div>
+                  <div>
+                    <dt>Оператор</dt>
+                    <dd>{wagon.operator}</dd>
+                  </div>
+                  <div>
+                    <dt>Депо</dt>
+                    <dd>{wagon.depot}</dd>
+                  </div>
+                  <div>
+                    <dt>Станция</dt>
+                    <dd>{wagon.currentStation}</dd>
+                  </div>
+                  <div>
+                    <dt>Грузоподъемность</dt>
+                    <dd>{wagon.payload}</dd>
+                  </div>
+                  <div>
+                    <dt>Следующий ремонт</dt>
+                    <dd>{wagon.nextRepair}</dd>
+                  </div>
+                </dl>
+              </article>
+            ))}
+          </div>
+        </div>
+
+        <aside className="panel">
+          <div className="panel-header">
+            <div>
+              <p className="eyebrow">Группы полей</p>
+              <h3>Структура паспорта</h3>
+            </div>
+          </div>
+          <div className="character-group-list">
+            {characteristicGroups.map((group) => (
+              <div className="character-group-card" key={group}>
+                <strong>{group}</strong>
+                <span>
+                  {
+                    wagonCharacteristics.filter(
+                      (characteristic) => characteristic.group === group,
+                    ).length
+                  }{' '}
+                  полей
+                </span>
+              </div>
+            ))}
+          </div>
+        </aside>
+      </section>
+
+      <section className="panel">
+        <div className="panel-header">
+          <div>
+            <p className="eyebrow">Расширенная таблица</p>
+            <h3>Основные характеристики вагонов</h3>
+          </div>
+        </div>
+        <div className="table-wrap">
+          <table className="wagon-table">
+            <thead>
+              <tr>
+                <th>Номер</th>
+                <th>Род</th>
+                <th>Модель</th>
+                <th>Собственник</th>
+                <th>Оператор</th>
+                <th>Регистрация</th>
+                <th>Депо</th>
+                <th>Станция</th>
+                <th>Грузоподъемность</th>
+                <th>Тара</th>
+                <th>Брутто</th>
+                <th>Объем</th>
+                <th>Длина</th>
+                <th>Осевая нагрузка</th>
+                <th>Тележка</th>
+                <th>Тормоз</th>
+                <th>Пробег</th>
+                <th>Ремонт</th>
+                <th>Статус</th>
+              </tr>
+            </thead>
+            <tbody>
+              {wagonRegistry.map((wagon) => (
+                <tr key={wagon.number}>
+                  <td>
+                    <strong>{wagon.number}</strong>
+                  </td>
+                  <td>{wagon.type}</td>
+                  <td>{wagon.model}</td>
+                  <td>{wagon.owner}</td>
+                  <td>{wagon.operator}</td>
+                  <td>{wagon.registration}</td>
+                  <td>{wagon.depot}</td>
+                  <td>{wagon.currentStation}</td>
+                  <td>{wagon.payload}</td>
+                  <td>{wagon.tare}</td>
+                  <td>{wagon.grossMass}</td>
+                  <td>{wagon.volume}</td>
+                  <td>{wagon.length}</td>
+                  <td>{wagon.axleLoad}</td>
+                  <td>{wagon.bogie}</td>
+                  <td>{wagon.brake}</td>
+                  <td>{wagon.mileage}</td>
+                  <td>{wagon.nextRepair}</td>
+                  <td>
+                    <span className={wagonStatusClass[wagon.status]}>{wagon.status}</span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section className="panel">
+        <div className="panel-header">
+          <div>
+            <p className="eyebrow">Справочник характеристик</p>
+            <h3>Все поля карточки вагона с описаниями</h3>
+          </div>
+        </div>
+        <div className="table-wrap">
+          <table className="characteristics-table">
+            <thead>
+              <tr>
+                <th>Группа</th>
+                <th>Поле</th>
+                <th>Описание</th>
+                <th>Пример</th>
+                <th>Обязательное</th>
+              </tr>
+            </thead>
+            <tbody>
+              {wagonCharacteristics.map((characteristic) => (
+                <tr key={`${characteristic.group}-${characteristic.field}`}>
+                  <td>{characteristic.group}</td>
+                  <td>
+                    <strong>{characteristic.field}</strong>
+                  </td>
+                  <td>{characteristic.description}</td>
+                  <td>{characteristic.example}</td>
+                  <td>{characteristic.required}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </>
   );
 }
 

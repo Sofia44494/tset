@@ -325,6 +325,18 @@ button {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
+.erv-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.erv-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.45fr) minmax(280px, 0.55fr);
+  gap: 18px;
+}
+
 .panel {
   min-width: 0;
   padding: 22px;
@@ -597,6 +609,117 @@ tbody tr:last-child td {
   font-size: 1.2rem;
 }
 
+.erv-summary-card {
+  display: grid;
+  gap: 4px;
+}
+
+.erv-summary-card strong {
+  color: var(--blue);
+  font-size: 2.3rem;
+  line-height: 1;
+  letter-spacing: -0.06em;
+}
+
+.erv-summary-card span {
+  color: var(--muted);
+  font-weight: 700;
+}
+
+.wagon-card-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.wagon-card,
+.character-group-card {
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background: rgba(255, 255, 255, 0.66);
+}
+
+.wagon-card {
+  display: grid;
+  gap: 16px;
+  padding: 17px;
+}
+
+.wagon-card-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.wagon-card h4 {
+  margin: 5px 0 0;
+  font-size: 1.05rem;
+}
+
+.wagon-number {
+  color: var(--blue);
+  font-size: 1.28rem;
+  font-weight: 900;
+  letter-spacing: -0.04em;
+}
+
+.wagon-details {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin: 0;
+}
+
+.wagon-details div {
+  display: grid;
+  gap: 2px;
+}
+
+.wagon-details dt {
+  color: var(--muted);
+  font-size: 0.74rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.wagon-details dd {
+  margin: 0;
+  font-weight: 750;
+}
+
+.character-group-list {
+  display: grid;
+  gap: 12px;
+}
+
+.character-group-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 15px;
+}
+
+.character-group-card span {
+  color: var(--muted);
+  font-weight: 800;
+}
+
+.wagon-table {
+  min-width: 1780px;
+}
+
+.characteristics-table {
+  min-width: 1180px;
+}
+
+.characteristics-table td:nth-child(3) {
+  min-width: 420px;
+  color: #3b4a60;
+}
+
 @media (max-width: 1220px) {
   .app-shell {
     grid-template-columns: 1fr;
@@ -620,6 +743,10 @@ tbody tr:last-child td {
   }
 
   .workspace-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .erv-grid {
     grid-template-columns: 1fr;
   }
 }
@@ -646,6 +773,9 @@ tbody tr:last-child td {
   .hero-actions,
   .workspace-nav,
   .metrics-grid,
+  .erv-summary-grid,
+  .wagon-card-grid,
+  .wagon-details,
   .module-grid,
   .finance-grid {
     grid-template-columns: 1fr;
