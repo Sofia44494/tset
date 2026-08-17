@@ -22,8 +22,29 @@ npm install
 npm run dev
 ```
 
+Команда `npm run dev` запускает сразу два процесса:
+
+- backend API на `http://localhost:4174`;
+- frontend Vite на `http://localhost:5173`.
+
+При первом запуске backend автоматически создаст SQLite-БД:
+
+```text
+data/railflow.db
+```
+
+Все KPI, реестры, ЕРВ и справочники загружаются через `/api/*` из этой базы.
+Кнопки создания заявок, добавления вагонов и импорта сохраняют изменения в SQLite.
+
 ## Сборка
 
 ```bash
 npm run build
+```
+
+## Production-запуск
+
+```bash
+npm run build
+npm run start
 ```

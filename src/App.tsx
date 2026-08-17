@@ -1,15 +1,23 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
 type WorkspaceId = 'overview' | 'transport' | 'fleet' | 'erv' | 'commerce' | 'control';
+type MetricTone = 'blue' | 'green' | 'amber' | 'violet';
 type ShipmentStatus = 'В пути' | 'Погрузка' | 'На границе' | 'Риск' | 'Закрыта';
 type AlertSeverity = 'Критично' | 'Важно' | 'Планово';
+type WagonStatus = 'Готов' | 'В рейсе' | 'ТО' | 'Ограничение';
 
 type Metric = {
   label: string;
   value: string;
   trend: string;
   caption: string;
-  tone: 'blue' | 'green' | 'amber' | 'violet';
+  tone: MetricTone;
+};
+
+type RouteStage = {
+  label: string;
+  complete: number;
+  amount: string;
 };
 
 type Shipment = {
@@ -17,7 +25,7 @@ type Shipment = {
   client: string;
   route: string;
   cargo: string;
-  status: ShipmentStatus;
+  status: ShipmentStatus | string;
   eta: string;
   value: string;
   reliability: number;
@@ -31,6 +39,33 @@ type FleetItem = {
   service: string;
 };
 
+type Terminal = {
+  name: string;
+  city: string;
+  load: number;
+  dwell: string;
+  slots: string;
+};
+
+type Alert = {
+  title: string;
+  severity: AlertSeverity | string;
+  detail: string;
+  owner: string;
+};
+
+type FinanceRow = {
+  label: string;
+  value: string;
+  detail: string;
+};
+
+type DocumentRow = {
+  title: string;
+  count: string;
+  state: string;
+};
+
 type WagonRecord = {
   number: string;
   type: string;
@@ -39,7 +74,7 @@ type WagonRecord = {
   operator: string;
   registration: string;
   depot: string;
-  status: 'Готов' | 'В рейсе' | 'ТО' | 'Ограничение';
+  status: WagonStatus | string;
   currentStation: string;
   nextRepair: string;
   payload: string;
@@ -61,19 +96,9 @@ type WagonCharacteristic = {
   required: string;
 };
 
-type Terminal = {
-  name: string;
-  city: string;
-  load: number;
-  dwell: string;
-  slots: string;
-};
-
-type Alert = {
-  title: string;
-  severity: AlertSeverity;
-  detail: string;
-  owner: string;
+type DashboardResponse = {
+  metrics: Metric[];
+  stages: RouteStage[];
 };
 
 const workspaces: Array<{ id: WorkspaceId; label: string; description: string }> = [
@@ -109,559 +134,7 @@ const workspaces: Array<{ id: WorkspaceId; label: string; description: string }>
   },
 ];
 
-const metrics: Metric[] = [
-  {
-    label: 'Активные отправки',
-    value: '1 284',
-    trend: '+12,8%',
-    caption: 'к прошлой неделе',
-    tone: 'blue',
-  },
-  {
-    label: 'Выполнение SLA',
-    value: '96,4%',
-    trend: '+2,1 п.п.',
-    caption: 'по срокам доставки',
-    tone: 'green',
-  },
-  {
-    label: 'Выручка месяца',
-    value: '482,6 млн ₽',
-    trend: '+38,2 млн ₽',
-    caption: 'закрыто актами',
-    tone: 'violet',
-  },
-  {
-    label: 'Рейсы с риском',
-    value: '27',
-    trend: '-9',
-    caption: 'после диспетчеризации',
-    tone: 'amber',
-  },
-];
-
-const shipments: Shipment[] = [
-  {
-    id: 'RF-2408-1092',
-    client: 'СеверСталь Логистика',
-    route: 'Череповец - Новороссийск',
-    cargo: 'Рулонная сталь',
-    status: 'В пути',
-    eta: '18 авг, 16:20',
-    value: '18,4 млн ₽',
-    reliability: 94,
-  },
-  {
-    id: 'RF-2408-1108',
-    client: 'УралХим Транс',
-    route: 'Березники - Находка',
-    cargo: 'Минеральные удобрения',
-    status: 'На границе',
-    eta: '21 авг, 09:45',
-    value: '31,7 млн ₽',
-    reliability: 81,
-  },
-  {
-    id: 'RF-2408-1127',
-    client: 'СибЭнергоСнаб',
-    route: 'Кемерово - Санкт-Петербург',
-    cargo: 'Уголь энергетический',
-    status: 'Погрузка',
-    eta: '20 авг, 22:10',
-    value: '24,9 млн ₽',
-    reliability: 88,
-  },
-  {
-    id: 'RF-2408-1151',
-    client: 'Восток Контейнер',
-    route: 'Москва-Товарная - Владивосток',
-    cargo: 'Контейнеры 40 ft',
-    status: 'Риск',
-    eta: '19 авг, 04:30',
-    value: '15,2 млн ₽',
-    reliability: 62,
-  },
-  {
-    id: 'RF-2408-1163',
-    client: 'АгроТрейд',
-    route: 'Краснодар - Екатеринбург',
-    cargo: 'Зерно',
-    status: 'Закрыта',
-    eta: '17 авг, 11:05',
-    value: '9,6 млн ₽',
-    reliability: 99,
-  },
-];
-
-const fleet: FleetItem[] = [
-  {
-    type: 'Полувагоны',
-    available: 842,
-    total: 1120,
-    utilization: 91,
-    service: '36 на ТО',
-  },
-  {
-    type: 'Крытые вагоны',
-    available: 316,
-    total: 428,
-    utilization: 84,
-    service: '18 на ТО',
-  },
-  {
-    type: 'Платформы',
-    available: 205,
-    total: 278,
-    utilization: 88,
-    service: '9 на ТО',
-  },
-  {
-    type: 'Цистерны',
-    available: 174,
-    total: 235,
-    utilization: 79,
-    service: '14 на ТО',
-  },
-];
-
-const wagonRegistry: WagonRecord[] = [
-  {
-    number: '52563418',
-    type: 'Полувагон',
-    model: '12-132-03',
-    owner: 'RailFlow Leasing',
-    operator: 'СеверСталь Логистика',
-    registration: 'РФ',
-    depot: 'Вологда',
-    status: 'В рейсе',
-    currentStation: 'Лоста',
-    nextRepair: 'КР 12.2028',
-    payload: '70,0 т',
-    tare: '23,5 т',
-    grossMass: '93,5 т',
-    volume: '88 м³',
-    length: '13 920 мм',
-    axleLoad: '23,5 тс',
-    bogie: '18-100',
-    brake: 'Автоматический пневматический',
-    mileage: '142 810 км',
-  },
-  {
-    number: '53820177',
-    type: 'Крытый вагон',
-    model: '11-280',
-    owner: 'ТрансКонтур',
-    operator: 'АгроТрейд',
-    registration: 'РФ',
-    depot: 'Батайск',
-    status: 'Готов',
-    currentStation: 'Краснодар-Сорт.',
-    nextRepair: 'ДР 03.2027',
-    payload: '68,0 т',
-    tare: '24,2 т',
-    grossMass: '92,2 т',
-    volume: '120 м³',
-    length: '15 720 мм',
-    axleLoad: '23,0 тс',
-    bogie: '18-100',
-    brake: 'Пневматический с авторежимом',
-    mileage: '98 430 км',
-  },
-  {
-    number: '94760544',
-    type: 'Платформа',
-    model: '13-2114',
-    owner: 'Восток Контейнер',
-    operator: 'Восток Контейнер',
-    registration: 'РФ',
-    depot: 'Москва-Товарная',
-    status: 'Ограничение',
-    currentStation: 'Тайшет',
-    nextRepair: 'ТО-3 08.2026',
-    payload: '72,0 т',
-    tare: '21,8 т',
-    grossMass: '93,8 т',
-    volume: 'Контейнерная база',
-    length: '19 620 мм',
-    axleLoad: '23,5 тс',
-    bogie: '18-9855',
-    brake: 'Автоматический пневматический',
-    mileage: '211 020 км',
-  },
-  {
-    number: '73014826',
-    type: 'Цистерна',
-    model: '15-150-04',
-    owner: 'УралХим Транс',
-    operator: 'УралХим Транс',
-    registration: 'РФ',
-    depot: 'Березники',
-    status: 'ТО',
-    currentStation: 'Пермь-Сорт.',
-    nextRepair: 'ДР 09.2026',
-    payload: '66,0 т',
-    tare: '27,4 т',
-    grossMass: '93,4 т',
-    volume: '73 м³',
-    length: '12 020 мм',
-    axleLoad: '23,5 тс',
-    bogie: '18-100',
-    brake: 'Пневматический с раздельным торможением',
-    mileage: '176 550 км',
-  },
-];
-
-const wagonCharacteristics: WagonCharacteristic[] = [
-  {
-    group: 'Идентификация',
-    field: 'Номер вагона',
-    description: 'Уникальный восьмизначный номер единицы подвижного состава.',
-    example: '52563418',
-    required: 'Да',
-  },
-  {
-    group: 'Идентификация',
-    field: 'Род вагона',
-    description: 'Классификация по назначению: полувагон, крытый, платформа, цистерна и т.д.',
-    example: 'Полувагон',
-    required: 'Да',
-  },
-  {
-    group: 'Идентификация',
-    field: 'Модель',
-    description: 'Заводское обозначение модели, определяющее конструктивные характеристики.',
-    example: '12-132-03',
-    required: 'Да',
-  },
-  {
-    group: 'Идентификация',
-    field: 'Собственник',
-    description: 'Юридическое лицо, которому принадлежит вагон.',
-    example: 'RailFlow Leasing',
-    required: 'Да',
-  },
-  {
-    group: 'Идентификация',
-    field: 'Оператор',
-    description: 'Компания, управляющая коммерческой эксплуатацией вагона.',
-    example: 'СеверСталь Логистика',
-    required: 'Да',
-  },
-  {
-    group: 'Идентификация',
-    field: 'Страна регистрации',
-    description: 'Государство учета вагона в железнодорожной администрации.',
-    example: 'РФ',
-    required: 'Да',
-  },
-  {
-    group: 'Идентификация',
-    field: 'Депо приписки',
-    description: 'Базовое депо обслуживания и учета вагона.',
-    example: 'Вологда',
-    required: 'Да',
-  },
-  {
-    group: 'Идентификация',
-    field: 'Дата постройки',
-    description: 'Дата выпуска вагона заводом-изготовителем.',
-    example: '14.05.2018',
-    required: 'Да',
-  },
-  {
-    group: 'Идентификация',
-    field: 'Завод-изготовитель',
-    description: 'Предприятие, выпустившее вагон.',
-    example: 'УВЗ',
-    required: 'Да',
-  },
-  {
-    group: 'Идентификация',
-    field: 'Срок службы',
-    description: 'Нормативный срок эксплуатации с учетом продлений ресурса.',
-    example: '32 года',
-    required: 'Да',
-  },
-  {
-    group: 'Технические параметры',
-    field: 'Грузоподъемность',
-    description: 'Максимальная масса груза, разрешенная к перевозке в вагоне.',
-    example: '70,0 т',
-    required: 'Да',
-  },
-  {
-    group: 'Технические параметры',
-    field: 'Тара',
-    description: 'Собственная масса порожнего вагона.',
-    example: '23,5 т',
-    required: 'Да',
-  },
-  {
-    group: 'Технические параметры',
-    field: 'Полная масса брутто',
-    description: 'Сумма тары и максимально допустимой массы груза.',
-    example: '93,5 т',
-    required: 'Да',
-  },
-  {
-    group: 'Технические параметры',
-    field: 'Объем кузова или котла',
-    description: 'Полезный объем для размещения груза, контейнера или наливного продукта.',
-    example: '88 м³',
-    required: 'Да',
-  },
-  {
-    group: 'Технические параметры',
-    field: 'Длина по осям автосцепки',
-    description: 'Габаритная длина вагона для расчета состава и станционных путей.',
-    example: '13 920 мм',
-    required: 'Да',
-  },
-  {
-    group: 'Технические параметры',
-    field: 'База вагона',
-    description: 'Расстояние между центрами шкворневых узлов тележек.',
-    example: '8 650 мм',
-    required: 'Да',
-  },
-  {
-    group: 'Технические параметры',
-    field: 'Количество осей',
-    description: 'Число колесных осей, влияющее на допустимую нагрузку и тарифные расчеты.',
-    example: '4',
-    required: 'Да',
-  },
-  {
-    group: 'Технические параметры',
-    field: 'Нагрузка на ось',
-    description: 'Максимально допустимая нагрузка от оси на рельсы.',
-    example: '23,5 тс',
-    required: 'Да',
-  },
-  {
-    group: 'Технические параметры',
-    field: 'Модель тележки',
-    description: 'Тип тележки, установленной на вагоне.',
-    example: '18-100',
-    required: 'Да',
-  },
-  {
-    group: 'Технические параметры',
-    field: 'Тип тормоза',
-    description: 'Конфигурация тормозной системы и наличие авторежима.',
-    example: 'Автоматический пневматический',
-    required: 'Да',
-  },
-  {
-    group: 'Технические параметры',
-    field: 'Тип автосцепки',
-    description: 'Модель сцепного устройства для совместимости в составе.',
-    example: 'СА-3',
-    required: 'Да',
-  },
-  {
-    group: 'Технические параметры',
-    field: 'Габарит',
-    description: 'Допустимый контур размещения вагона и груза на инфраструктуре.',
-    example: '1-Т',
-    required: 'Да',
-  },
-  {
-    group: 'Технические параметры',
-    field: 'Высота',
-    description: 'Максимальная высота вагона от уровня головки рельса.',
-    example: '3 760 мм',
-    required: 'Нет',
-  },
-  {
-    group: 'Технические параметры',
-    field: 'Ширина',
-    description: 'Максимальная ширина кузова или платформы.',
-    example: '3 220 мм',
-    required: 'Нет',
-  },
-  {
-    group: 'Эксплуатация',
-    field: 'Текущее состояние',
-    description: 'Операционный статус вагона: готов, в рейсе, на ТО, под ограничением.',
-    example: 'В рейсе',
-    required: 'Да',
-  },
-  {
-    group: 'Эксплуатация',
-    field: 'Текущая станция',
-    description: 'Последняя подтвержденная станция дислокации вагона.',
-    example: 'Лоста',
-    required: 'Да',
-  },
-  {
-    group: 'Эксплуатация',
-    field: 'Последняя операция',
-    description: 'Последнее событие с вагоном: погрузка, выгрузка, перестановка, осмотр.',
-    example: 'Прибытие на станцию',
-    required: 'Да',
-  },
-  {
-    group: 'Эксплуатация',
-    field: 'Дата последней операции',
-    description: 'Время фиксации последнего события по вагону.',
-    example: '17.08.2026 08:40',
-    required: 'Да',
-  },
-  {
-    group: 'Эксплуатация',
-    field: 'Пробег',
-    description: 'Накопленный пробег вагона для контроля ресурса и ремонтов.',
-    example: '142 810 км',
-    required: 'Да',
-  },
-  {
-    group: 'Эксплуатация',
-    field: 'Остаток до ремонта',
-    description: 'Доступный ресурс по пробегу или времени до следующего ремонта.',
-    example: '38 000 км',
-    required: 'Да',
-  },
-  {
-    group: 'Эксплуатация',
-    field: 'Следующий ремонт',
-    description: 'Тип и срок ближайшего планового ремонта или ТО.',
-    example: 'КР 12.2028',
-    required: 'Да',
-  },
-  {
-    group: 'Эксплуатация',
-    field: 'Ремонтные ограничения',
-    description: 'Ограничения эксплуатации из-за дефектов, предписаний или ремонта.',
-    example: 'Запрет погрузки до ТО-3',
-    required: 'Нет',
-  },
-  {
-    group: 'Эксплуатация',
-    field: 'Разрешенные грузы',
-    description: 'Номенклатура грузов, допустимых к перевозке в данном вагоне.',
-    example: 'Металл, уголь, щебень',
-    required: 'Да',
-  },
-  {
-    group: 'Эксплуатация',
-    field: 'Запрещенные грузы',
-    description: 'Грузы, несовместимые с конструкцией, остатками или санитарными требованиями.',
-    example: 'Пищевые грузы после химии',
-    required: 'Нет',
-  },
-  {
-    group: 'Коммерция и контроль',
-    field: 'Договор аренды',
-    description: 'Связанный договор использования вагона оператором или клиентом.',
-    example: 'RL-24/088',
-    required: 'Нет',
-  },
-  {
-    group: 'Коммерция и контроль',
-    field: 'Ставка аренды',
-    description: 'Суточная или рейсовая ставка использования вагона.',
-    example: '2 850 ₽/сутки',
-    required: 'Нет',
-  },
-  {
-    group: 'Коммерция и контроль',
-    field: 'Коэффициент использования',
-    description: 'Доля времени, когда вагон находится в доходной эксплуатации.',
-    example: '91%',
-    required: 'Да',
-  },
-  {
-    group: 'Коммерция и контроль',
-    field: 'GPS/ГЛОНАСС',
-    description: 'Наличие телематического устройства и статус передачи координат.',
-    example: 'Активен',
-    required: 'Нет',
-  },
-  {
-    group: 'Коммерция и контроль',
-    field: 'Пломбы',
-    description: 'Номера и состояние пломб для контроля сохранности груза.',
-    example: 'RF883201, целая',
-    required: 'Нет',
-  },
-  {
-    group: 'Коммерция и контроль',
-    field: 'Примечание',
-    description: 'Свободное поле для диспетчерских, технических и клиентских комментариев.',
-    example: 'Требуется мойка после выгрузки',
-    required: 'Нет',
-  },
-];
-
-const terminals: Terminal[] = [
-  {
-    name: 'Южный хаб',
-    city: 'Ростов-на-Дону',
-    load: 78,
-    dwell: '7ч 20м',
-    slots: '18 свободно',
-  },
-  {
-    name: 'Балтийский терминал',
-    city: 'Санкт-Петербург',
-    load: 64,
-    dwell: '5ч 45м',
-    slots: '31 свободно',
-  },
-  {
-    name: 'Сибирский узел',
-    city: 'Новосибирск',
-    load: 86,
-    dwell: '9ч 10м',
-    slots: '12 свободно',
-  },
-];
-
-const routeStages = [
-  { label: 'Заявка', complete: 100, amount: '286 новых' },
-  { label: 'План', complete: 92, amount: '241 согласовано' },
-  { label: 'Подача', complete: 76, amount: '184 вагона' },
-  { label: 'В пути', complete: 68, amount: '1 284 отправки' },
-  { label: 'Акты', complete: 57, amount: '936 закрыто' },
-];
-
-const financeRows = [
-  { label: 'Доходность маршрутов', value: '23,8%', detail: '+4,6 п.п. к плану' },
-  { label: 'Дебиторская задолженность', value: '74,1 млн ₽', detail: '18,5 млн ₽ просрочено' },
-  { label: 'Средняя ставка за тонну', value: '3 920 ₽', detail: '+7,2% к июлю' },
-  { label: 'Экономия на порожнем пробеге', value: '12,4 млн ₽', detail: 'за счет обратных загрузок' },
-];
-
-const alerts: Alert[] = [
-  {
-    title: 'Задержка согласования станции перехода',
-    severity: 'Критично',
-    detail: 'RF-2408-1151 требует подтверждения окна на участке Тайшет - Иркутск.',
-    owner: 'Диспетчерская смена A',
-  },
-  {
-    title: 'Пик погрузки на Сибирском узле',
-    severity: 'Важно',
-    detail: 'Ожидается превышение плановой нагрузки на 14% в течение 6 часов.',
-    owner: 'Операционный директор',
-  },
-  {
-    title: 'Плановое ТО платформ',
-    severity: 'Планово',
-    detail: '9 платформ нужно вывести из оборота до конца суток без влияния на SLA.',
-    owner: 'Служба парка',
-  },
-];
-
-const documents = [
-  { title: 'ЖД накладные', count: '1 042', state: '98% подписано' },
-  { title: 'Акты выполненных работ', count: '936', state: '74 ожидают ЭДО' },
-  { title: 'Сертификаты груза', count: '318', state: '12 на проверке' },
-  { title: 'Претензии', count: '21', state: '6 требуют ответа' },
-];
-
-const statusClass: Record<ShipmentStatus, string> = {
+const shipmentStatusClass: Record<ShipmentStatus, string> = {
   'В пути': 'status status-blue',
   Погрузка: 'status status-violet',
   'На границе': 'status status-amber',
@@ -675,7 +148,7 @@ const severityClass: Record<AlertSeverity, string> = {
   Планово: 'severity severity-blue',
 };
 
-const wagonStatusClass: Record<WagonRecord['status'], string> = {
+const wagonStatusClass: Record<WagonStatus, string> = {
   Готов: 'status status-green',
   'В рейсе': 'status status-blue',
   ТО: 'status status-amber',
@@ -685,21 +158,19 @@ const wagonStatusClass: Record<WagonRecord['status'], string> = {
 function App() {
   const [activeWorkspace, setActiveWorkspace] = useState<WorkspaceId>('overview');
   const [query, setQuery] = useState('');
-
-  const filteredShipments = useMemo(() => {
-    const normalizedQuery = query.trim().toLowerCase();
-
-    if (!normalizedQuery) {
-      return shipments;
-    }
-
-    return shipments.filter((shipment) =>
-      [shipment.id, shipment.client, shipment.route, shipment.cargo, shipment.status]
-        .join(' ')
-        .toLowerCase()
-        .includes(normalizedQuery),
-    );
-  }, [query]);
+  const [metrics, setMetrics] = useState<Metric[]>([]);
+  const [routeStages, setRouteStages] = useState<RouteStage[]>([]);
+  const [shipments, setShipments] = useState<Shipment[]>([]);
+  const [fleet, setFleet] = useState<FleetItem[]>([]);
+  const [terminals, setTerminals] = useState<Terminal[]>([]);
+  const [alerts, setAlerts] = useState<Alert[]>([]);
+  const [documents, setDocuments] = useState<DocumentRow[]>([]);
+  const [financeRows, setFinanceRows] = useState<FinanceRow[]>([]);
+  const [wagonRegistry, setWagonRegistry] = useState<WagonRecord[]>([]);
+  const [wagonCharacteristics, setWagonCharacteristics] = useState<WagonCharacteristic[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isBusy, setIsBusy] = useState(false);
+  const [statusMessage, setStatusMessage] = useState('Подключение к SQLite...');
 
   const activeWorkspaceTitle =
     workspaces.find((workspace) => workspace.id === activeWorkspace)?.label ?? 'Командный центр';
@@ -710,6 +181,129 @@ function App() {
   const heroDescription = isErvWorkspace
     ? 'Ведите паспорт вагона, технические параметры, эксплуатационный статус, ремонтный ресурс и коммерческие ограничения в едином справочнике.'
     : 'Планируйте отправки, отслеживайте вагоны, контролируйте SLA, документы и доходность маршрутов в одном интерфейсе.';
+
+  useEffect(() => {
+    void refreshEverything();
+  }, []);
+
+  useEffect(() => {
+    const timeout = window.setTimeout(() => {
+      void loadShipments(query);
+    }, 250);
+
+    return () => window.clearTimeout(timeout);
+  }, [query]);
+
+  async function refreshEverything() {
+    setIsLoading(true);
+
+    try {
+      const [dashboard, shipmentRows, fleetRows, terminalRows, alertRows, documentRows, finance, wagons, characteristics] =
+        await Promise.all([
+          requestJson<DashboardResponse>('/api/dashboard'),
+          requestJson<Shipment[]>(`/api/shipments?search=${encodeURIComponent(query)}`),
+          requestJson<FleetItem[]>('/api/fleet'),
+          requestJson<Terminal[]>('/api/terminals'),
+          requestJson<Alert[]>('/api/alerts'),
+          requestJson<DocumentRow[]>('/api/documents'),
+          requestJson<FinanceRow[]>('/api/finance'),
+          requestJson<WagonRecord[]>('/api/wagons'),
+          requestJson<WagonCharacteristic[]>('/api/wagon-characteristics'),
+        ]);
+
+      setMetrics(dashboard.metrics);
+      setRouteStages(dashboard.stages);
+      setShipments(shipmentRows);
+      setFleet(fleetRows);
+      setTerminals(terminalRows);
+      setAlerts(alertRows);
+      setDocuments(documentRows);
+      setFinanceRows(finance);
+      setWagonRegistry(wagons);
+      setWagonCharacteristics(characteristics);
+      setStatusMessage('Данные загружены из SQLite БД');
+    } catch (error) {
+      setStatusMessage(getErrorMessage(error));
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
+  async function loadShipments(search: string) {
+    try {
+      const shipmentRows = await requestJson<Shipment[]>(
+        `/api/shipments?search=${encodeURIComponent(search)}`,
+      );
+      setShipments(shipmentRows);
+    } catch (error) {
+      setStatusMessage(getErrorMessage(error));
+    }
+  }
+
+  async function handleCreateShipment() {
+    const client = window.prompt('Клиент для новой заявки', 'Новый клиент');
+
+    if (client === null) {
+      return;
+    }
+
+    const route = window.prompt('Маршрут', 'Москва-Товарная - Екатеринбург') ?? '';
+    const cargo = window.prompt('Груз', 'Контейнеры 40 ft') ?? '';
+
+    await runMutation('/api/shipments', {
+      client,
+      route,
+      cargo,
+      eta: '22 авг, 10:00',
+      valueMln: 3.8,
+      reliability: 90,
+    });
+  }
+
+  async function handleCreateWagon() {
+    const number = window.prompt('Номер вагона. Можно оставить пустым для автогенерации', '');
+
+    if (number === null) {
+      return;
+    }
+
+    const type = window.prompt('Род вагона', 'Полувагон') ?? '';
+    const model = window.prompt('Модель вагона', '12-132-03') ?? '';
+    const owner = window.prompt('Собственник', 'RailFlow Leasing') ?? '';
+    const operator = window.prompt('Оператор', 'Новый оператор') ?? '';
+
+    await runMutation('/api/wagons', {
+      number,
+      type,
+      model,
+      owner,
+      operator,
+      status: 'Готов',
+    });
+  }
+
+  async function handleImport() {
+    await runMutation(`/api/import/${isErvWorkspace ? 'asoup' : 'etran'}`);
+  }
+
+  async function runMutation(url: string, body?: unknown) {
+    setIsBusy(true);
+    setStatusMessage('Сохраняем изменения в БД...');
+
+    try {
+      await requestJson(url, {
+        method: 'POST',
+        headers: body ? { 'Content-Type': 'application/json' } : undefined,
+        body: body ? JSON.stringify(body) : undefined,
+      });
+      await refreshEverything();
+      setStatusMessage('Изменения сохранены в SQLite и интерфейс обновлен');
+    } catch (error) {
+      setStatusMessage(getErrorMessage(error));
+    } finally {
+      setIsBusy(false);
+    }
+  }
 
   return (
     <main className="app-shell">
@@ -738,10 +332,10 @@ function App() {
 
         <section className="dispatcher-card">
           <p className="eyebrow">Диспетчер онлайн</p>
-          <h2>Смена A</h2>
-          <p>24 маршрута под контролем, 3 события требуют решения до 15:00.</p>
-          <button className="ghost-button" type="button">
-            Открыть сменный журнал
+          <h2>SQLite API</h2>
+          <p>Все KPI, реестры и справочники загружаются через backend из локальной БД.</p>
+          <button className="ghost-button" onClick={() => void refreshEverything()} type="button">
+            Обновить из БД
           </button>
         </section>
       </aside>
@@ -752,31 +346,55 @@ function App() {
             <p className="eyebrow">Рабочая область: {activeWorkspaceTitle}</p>
             <h2>{heroTitle}</h2>
             <p>{heroDescription}</p>
+            <div className="action-message" aria-live="polite">
+              {isLoading ? 'Загрузка данных из БД...' : statusMessage}
+            </div>
           </div>
           <div className="hero-actions">
-            <button className="primary-button" type="button">
+            <button
+              className="primary-button"
+              disabled={isBusy}
+              onClick={() => void (isErvWorkspace ? handleCreateWagon() : handleCreateShipment())}
+              type="button"
+            >
               {isErvWorkspace ? 'Добавить вагон' : 'Создать заявку'}
             </button>
-            <button className="secondary-button" type="button">
+            <button
+              className="secondary-button"
+              disabled={isBusy}
+              onClick={() => void handleImport()}
+              type="button"
+            >
               {isErvWorkspace ? 'Импорт из АСОУП' : 'Импорт из ЭТРАН'}
             </button>
           </div>
         </header>
 
         <section className="metrics-grid" aria-label="Ключевые показатели">
-          {metrics.map((metric) => (
-            <article className={`metric-card metric-${metric.tone}`} key={metric.label}>
-              <p>{metric.label}</p>
-              <strong>{metric.value}</strong>
-              <span>
-                {metric.trend} · {metric.caption}
-              </span>
+          {metrics.length > 0 ? (
+            metrics.map((metric) => (
+              <article className={`metric-card metric-${metric.tone}`} key={metric.label}>
+                <p>{metric.label}</p>
+                <strong>{metric.value}</strong>
+                <span>
+                  {metric.trend} · {metric.caption}
+                </span>
+              </article>
+            ))
+          ) : (
+            <article className="metric-card metric-blue">
+              <p>Статистика</p>
+              <strong>БД</strong>
+              <span>ожидание ответа backend API</span>
             </article>
-          ))}
+          )}
         </section>
 
         {isErvWorkspace ? (
-          <ErvWorkspace />
+          <ErvWorkspace
+            wagonCharacteristics={wagonCharacteristics}
+            wagonRegistry={wagonRegistry}
+          />
         ) : (
           <>
             <section className="workspace-grid">
@@ -786,7 +404,7 @@ function App() {
                     <p className="eyebrow">Операционная воронка</p>
                     <h3>Жизненный цикл перевозки</h3>
                   </div>
-                  <span className="live-badge">live</span>
+                  <span className="live-badge">DB live</span>
                 </div>
                 <div className="stage-list">
                   {routeStages.map((stage) => (
@@ -813,7 +431,7 @@ function App() {
                   {alerts.map((alert) => (
                     <article className="alert-card" key={alert.title}>
                       <div>
-                        <span className={severityClass[alert.severity]}>{alert.severity}</span>
+                        <span className={getSeverityClass(alert.severity)}>{alert.severity}</span>
                         <h4>{alert.title}</h4>
                       </div>
                       <p>{alert.detail}</p>
@@ -831,7 +449,7 @@ function App() {
                   <h3>Активные заявки и рейсы</h3>
                 </div>
                 <label className="search-box">
-                  <span>Поиск</span>
+                  <span>Поиск в БД</span>
                   <input
                     aria-label="Поиск по перевозкам"
                     onChange={(event) => setQuery(event.target.value)}
@@ -856,7 +474,7 @@ function App() {
                     </tr>
                   </thead>
                   <tbody>
-                    {filteredShipments.map((shipment) => (
+                    {shipments.map((shipment) => (
                       <tr key={shipment.id}>
                         <td>
                           <strong>{shipment.id}</strong>
@@ -873,7 +491,9 @@ function App() {
                           </div>
                         </td>
                         <td>
-                          <span className={statusClass[shipment.status]}>{shipment.status}</span>
+                          <span className={getShipmentStatusClass(shipment.status)}>
+                            {shipment.status}
+                          </span>
                         </td>
                       </tr>
                     ))}
@@ -883,10 +503,10 @@ function App() {
             </section>
 
             <section className="module-grid">
-              <FleetPanel />
-              <TerminalsPanel />
-              <FinancePanel />
-              <DocumentsPanel />
+              <FleetPanel fleet={fleet} />
+              <TerminalsPanel terminals={terminals} />
+              <FinancePanel financeRows={financeRows} />
+              <DocumentsPanel documents={documents} />
             </section>
           </>
         )}
@@ -895,10 +515,22 @@ function App() {
   );
 }
 
-function ErvWorkspace() {
-  const characteristicGroups = Array.from(
-    new Set(wagonCharacteristics.map((characteristic) => characteristic.group)),
-  );
+function ErvWorkspace({
+  wagonCharacteristics,
+  wagonRegistry,
+}: {
+  wagonCharacteristics: WagonCharacteristic[];
+  wagonRegistry: WagonRecord[];
+}) {
+  const characteristicGroups = useMemo(() => {
+    const groups = new Map<string, number>();
+
+    wagonCharacteristics.forEach((characteristic) => {
+      groups.set(characteristic.group, (groups.get(characteristic.group) ?? 0) + 1);
+    });
+
+    return Array.from(groups.entries()).map(([group, count]) => ({ group, count }));
+  }, [wagonCharacteristics]);
 
   return (
     <>
@@ -906,17 +538,17 @@ function ErvWorkspace() {
         <article className="panel erv-summary-card">
           <p className="eyebrow">ЕРВ</p>
           <strong>{wagonRegistry.length}</strong>
-          <span>вагона в витрине реестра</span>
+          <span>вагонов в SQLite</span>
         </article>
         <article className="panel erv-summary-card">
           <p className="eyebrow">Поля паспорта</p>
           <strong>{wagonCharacteristics.length}</strong>
-          <span>характеристик с описаниями</span>
+          <span>характеристик из БД</span>
         </article>
         <article className="panel erv-summary-card">
           <p className="eyebrow">Контроль ремонта</p>
-          <strong>100%</strong>
-          <span>записей с планом ТО и ремонта</span>
+          <strong>{wagonRegistry.filter((wagon) => wagon.nextRepair).length}</strong>
+          <span>записей с планом ТО</span>
         </article>
       </section>
 
@@ -939,7 +571,7 @@ function ErvWorkspace() {
                       {wagon.type} · {wagon.model}
                     </h4>
                   </div>
-                  <span className={wagonStatusClass[wagon.status]}>{wagon.status}</span>
+                  <span className={getWagonStatusClass(wagon.status)}>{wagon.status}</span>
                 </div>
                 <dl className="wagon-details">
                   <div>
@@ -980,17 +612,10 @@ function ErvWorkspace() {
             </div>
           </div>
           <div className="character-group-list">
-            {characteristicGroups.map((group) => (
+            {characteristicGroups.map(({ group, count }) => (
               <div className="character-group-card" key={group}>
                 <strong>{group}</strong>
-                <span>
-                  {
-                    wagonCharacteristics.filter(
-                      (characteristic) => characteristic.group === group,
-                    ).length
-                  }{' '}
-                  полей
-                </span>
+                <span>{count} полей</span>
               </div>
             ))}
           </div>
@@ -1001,7 +626,7 @@ function ErvWorkspace() {
         <div className="panel-header">
           <div>
             <p className="eyebrow">Расширенная таблица</p>
-            <h3>Основные характеристики вагонов</h3>
+            <h3>Основные характеристики вагонов из БД</h3>
           </div>
         </div>
         <div className="table-wrap">
@@ -1053,7 +678,7 @@ function ErvWorkspace() {
                   <td>{wagon.mileage}</td>
                   <td>{wagon.nextRepair}</td>
                   <td>
-                    <span className={wagonStatusClass[wagon.status]}>{wagon.status}</span>
+                    <span className={getWagonStatusClass(wagon.status)}>{wagon.status}</span>
                   </td>
                 </tr>
               ))}
@@ -1066,7 +691,7 @@ function ErvWorkspace() {
         <div className="panel-header">
           <div>
             <p className="eyebrow">Справочник характеристик</p>
-            <h3>Все поля карточки вагона с описаниями</h3>
+            <h3>Все поля карточки вагона с описаниями из БД</h3>
           </div>
         </div>
         <div className="table-wrap">
@@ -1100,7 +725,7 @@ function ErvWorkspace() {
   );
 }
 
-function FleetPanel() {
+function FleetPanel({ fleet }: { fleet: FleetItem[] }) {
   return (
     <article className="panel">
       <div className="panel-header">
@@ -1126,7 +751,7 @@ function FleetPanel() {
   );
 }
 
-function TerminalsPanel() {
+function TerminalsPanel({ terminals }: { terminals: Terminal[] }) {
   return (
     <article className="panel">
       <div className="panel-header">
@@ -1153,7 +778,7 @@ function TerminalsPanel() {
   );
 }
 
-function FinancePanel() {
+function FinancePanel({ financeRows }: { financeRows: FinanceRow[] }) {
   return (
     <article className="panel">
       <div className="panel-header">
@@ -1175,7 +800,7 @@ function FinancePanel() {
   );
 }
 
-function DocumentsPanel() {
+function DocumentsPanel({ documents }: { documents: DocumentRow[] }) {
   return (
     <article className="panel">
       <div className="panel-header">
@@ -1205,6 +830,36 @@ function ProgressBar({ value, compact = false }: { value: number; compact?: bool
       <span style={{ width: `${value}%` }} />
     </div>
   );
+}
+
+async function requestJson<T>(url: string, options?: RequestInit): Promise<T> {
+  const response = await fetch(url, options);
+
+  if (!response.ok) {
+    throw new Error(`API ${response.status}: ${await response.text()}`);
+  }
+
+  return response.json() as Promise<T>;
+}
+
+function getShipmentStatusClass(status: string) {
+  return shipmentStatusClass[status as ShipmentStatus] ?? 'status status-blue';
+}
+
+function getSeverityClass(severity: string) {
+  return severityClass[severity as AlertSeverity] ?? 'severity severity-blue';
+}
+
+function getWagonStatusClass(status: string) {
+  return wagonStatusClass[status as WagonStatus] ?? 'status status-blue';
+}
+
+function getErrorMessage(error: unknown) {
+  if (error instanceof Error) {
+    return `Ошибка: ${error.message}`;
+  }
+
+  return 'Неизвестная ошибка при обращении к API';
 }
 
 export default App;
